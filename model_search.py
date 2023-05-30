@@ -65,18 +65,18 @@ class Cell(nn.Module):
                 op = MixedOp(C, stride, self.k)
                 self._ops.append(op)
 
-        def forward(self, s0, s1, weights):
-            s0 = self.preprocess0(s0)
-            s1 = self.preprocess1(s1)
+    def forward(self, s0, s1, weights):
+        s0 = self.preprocess0(s0)
+        s1 = self.preprocess1(s1)
 
-            states = [s0, s1]
-            offset = 0
-            for i in range(self._steps):
-                s = sum(self._ops[offset + j](h, weights[offset + j]) for j, h in enumerate(states))
-                offset += len(states)
-                states.append(s)
+        states = [s0, s1]
+        offset = 0
+        for i in range(self._steps):
+            s = sum(self._ops[offset + j](h, weights[offset + j]) for j, h in enumerate(states))
+            offset += len(states)
+            states.append(s)
 
-            return torch.cat(states[-self._multiplier:], dim=1)
+        return torch.cat(states[-self._multiplier:], dim=1)
 
 
 class Network(nn.Module):
