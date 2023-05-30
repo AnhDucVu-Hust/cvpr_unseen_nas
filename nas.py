@@ -94,7 +94,7 @@ class NAS:
             print('genotype = %s', genotype)
         return model
 
-    def remove_players(normal_weights, reduce_weights, op):
+    def remove_players(self,normal_weights, reduce_weights, op):
 
         selected_cell = str(op.split('_')[0])
         selected_eid = int(op.split('_')[1])
@@ -106,7 +106,7 @@ class NAS:
         else:
             reduce_weights[selected_eid] = reduce_weights[selected_eid] * proj_mask
 
-    def shap_estimation(valid_queue, model, criterion, players, num_samples, threshold=0.5):
+    def shap_estimation(self,valid_queue, model, criterion, players, num_samples, threshold=0.5):
         """
         Implementation of Monte-Carlo sampling of Shapley value for operation importance evaluation
         """
@@ -154,7 +154,7 @@ class NAS:
 
             return shap_normal, shap_reduce
 
-    def change_alpha(model, shap_values, accu_shap_values, momentum=0.8, step_size=0.1):
+    def change_alpha(self,model, shap_values, accu_shap_values, momentum=0.8, step_size=0.1):
         assert len(shap_values) == len(model.arch_parameters())
 
         shap = [torch.from_numpy(shap_values[i]).cuda() for i in range(len(model.arch_parameters()))]
@@ -174,7 +174,7 @@ class NAS:
 
         return updated_shap
 
-    def train(train_queue, model, criterion, optimizer):
+    def train(self,train_queue, model, criterion, optimizer):
         objs = utils.AvgrageMeter()
         top1 = utils.AvgrageMeter()
         top5 = utils.AvgrageMeter()
