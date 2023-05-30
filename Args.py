@@ -7,7 +7,7 @@ class Args:
     weight_decay = 3e-4
     report_freq = 50
     gpu = 0
-    epochs = 50
+    epochs = 2
     init_channels = 16
     layers = 8
     model_path = '/kaggle/working/weights.pt'
