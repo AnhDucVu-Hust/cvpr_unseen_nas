@@ -11,9 +11,9 @@ class Nas_Data(Dataset):
     def __len__(self):
         return len(self.image)
     def __getitem__(self,item):
-        if isinstance(self.label,list):
+        if self.label.all() == None:
             return torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
-        else:
+        else if self.label == None:
             return torch.from_numpy(self.image[item]).float()
 
 class DataProcessor:
