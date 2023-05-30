@@ -11,7 +11,7 @@ class Nas_Data(Dataset):
     def __len__(self):
         return len(self.image)
     def __getitem__(self,item):
-        if self.label != None:
+        if isinstance(self.label,list):
             return torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
         else:
             return torch.from_numpy(self.image[item]).float()
