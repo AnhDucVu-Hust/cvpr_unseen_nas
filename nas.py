@@ -179,9 +179,11 @@ class NAS:
         top1 = utils.AvgrageMeter()
         top5 = utils.AvgrageMeter()
 
-        for step, (input, target) in enumerate(tqdm(train_queue, desc="training", total=len(train_queue))):
+        for step, datapoint in enumerate(tqdm(train_queue, desc="training", total=len(train_queue))):
             model.train()
+            print(datapoint)
             n = input.size(0)
+            input,target = datapoint
             input = Variable(input, requires_grad=False).cuda()
             target = Variable(target, requires_grad=False).cuda()
             optimizer.zero_grad()
