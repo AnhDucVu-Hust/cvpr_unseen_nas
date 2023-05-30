@@ -37,7 +37,7 @@ class MixedOp(nn.Module):
         else:
             ans=torch.cat([temp1,self.mp(xtemp2)],dim=1)
         ans=channel_shuffle(ans,self.k)
-
+        return ans
     def wider(self, k):
         self.k = k
         for op in self._ops:
@@ -70,10 +70,6 @@ class Cell(nn.Module):
         s1 = self.preprocess1(s1)
         
         states = [s0, s1]
-        for j,h in enumerate(states):
-            print(j)
-            print(h)
-            print("tao xin chúng mày")
         offset = 0
         for i in range(self._steps):
             s = sum(self._ops[offset + j](h, weights[offset + j]) for j, h in enumerate(states))
