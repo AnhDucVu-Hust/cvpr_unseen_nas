@@ -55,7 +55,7 @@ class NAS:
     def search(self):
         criterion = nn.CrossEntropyLoss()
         criterion = criterion.cuda()
-        model = Network(C=16,num_channel=self.input_shape[1],layers=8,criterion=criterion)
+        model = Network(C=16,num_channel=self.input_shape[1],layers=8,criterion=criterion,num_classes = self.num_classes)
         model = model.cuda()
         arch_params = list (map(id,model.arch_parameters()))
         weight_params = filter(lambda p: id(p) not in arch_params, model.parameters())
