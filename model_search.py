@@ -68,8 +68,9 @@ class Cell(nn.Module):
     def forward(self, s0, s1, weights):
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
-
+        
         states = [s0, s1]
+        print(enumerate(states))
         offset = 0
         for i in range(self._steps):
             s = sum(self._ops[offset + j](h, weights[offset + j]) for j, h in enumerate(states))
