@@ -41,8 +41,7 @@ class DataProcessor:
         self.train=Nas_Data(train_x,train_y)
         self.valid=Nas_Data(valid_x,valid_y)
         self.test=Nas_Data(test_x)
-        self.metadata=metadata.num_classes
-        self.input_shape=metadata.input_shape
+        self.metadata=metadata
 
 
 
