@@ -25,7 +25,7 @@ class MixedOp(nn.Module):
         for primitive in PRIMITIVES:
             op = OPS[primitive](C //self.k, stride, False)
             self._ops.append(op)
-    def __forward__(self,x,weights):
+    def forward(self,x,weights):
         dim_2=x.shape[1]
         xtemp=x[:,:dim_2 // self.k, :, :]
         xtemp2=x[:,dim_2 // self.k:,:,:]
