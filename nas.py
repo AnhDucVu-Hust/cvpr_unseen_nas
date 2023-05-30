@@ -223,4 +223,4 @@ class NAS:
             if step % args.report_freq == 0:
               logging.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
 
-          return top1.avg, objs.avg
+        return top1.avg, objs.avg
