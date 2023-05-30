@@ -13,7 +13,7 @@ class Nas_Data(Dataset):
     def __getitem__(self,item):
         if self.label.all() == None:
             return torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
-        else if self.label == None:
+        elif self.label == None:
             return torch.from_numpy(self.image[item]).float()
 
 class DataProcessor:
