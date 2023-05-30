@@ -70,7 +70,10 @@ class Cell(nn.Module):
         s1 = self.preprocess1(s1)
         
         states = [s0, s1]
-        print(enumerate(states))
+        for j,h in enumerate(states):
+            print(j)
+            print(h)
+            print("tao xin chúng mày")
         offset = 0
         for i in range(self._steps):
             s = sum(self._ops[offset + j](h, weights[offset + j]) for j, h in enumerate(states))
