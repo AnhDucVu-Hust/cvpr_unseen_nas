@@ -135,7 +135,7 @@ class NAS:
 
                 for idx, i in enumerate(permutations[j]):
 
-                    valid_queue.remove_players(normal_weights, reduce_weights, players[i])
+                    remove_players(normal_weights, reduce_weights, players[i])
 
                     logits = model(x, weights_dict={'normal': normal_weights, 'reduce': reduce_weights})
                     prec1, = utils.accuracy(logits, y, topk=(1,))
