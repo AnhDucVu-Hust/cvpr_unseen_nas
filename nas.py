@@ -189,7 +189,7 @@ class NAS:
             loss = criterion(logits, target)
 
             loss.backward()
-            nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
+            nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             optimizer.step()
 
             prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
