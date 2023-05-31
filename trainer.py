@@ -70,7 +70,7 @@ class Trainer:
 
             train_acc = accuracy_score(labels, predictions)
             valid_acc = self.evaluate()
-            print("\tEpoch {:>3}/{:<3} | Train Acc: {:>6.2f}% | Valid Acc: {:>6.2f}% | T/Epoch: {:<7} |".format(
+            print("\tEpoch {:d}| Train Acc: {:>2f}| Valid Acc {:>2f} | T/Epoch: {:>7f}|".format(
                 epoch + 1, self.epochs,
                 train_acc * 100, valid_acc * 100,
 
