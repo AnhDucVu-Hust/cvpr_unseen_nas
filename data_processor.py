@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 
 
 class Nas_Data(Dataset):
-    def __init__(self,x,y,test=False):
+    def __init__(self,x,y=None,test=False):
         self.image=x
         self.label=y
         self.test=test
