@@ -5,16 +5,17 @@ from torch.utils.data import Dataset
 
 
 class Nas_Data(Dataset):
-    def __init__(self,x,y=None):
+    def __init__(self,x,y,test=False):
         self.image=x
         self.label=y
+        self.test=test
     def __len__(self):
         #return len(self.image)
         return 100
     def __getitem__(self,item):
-        if self.label.all() != None:
+        if (!self.test):
             return torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
-        elif self.label == None:
+        else:
             return torch.from_numpy(self.image[item]).float()
 
 class DataProcessor:
@@ -41,7 +42,7 @@ class DataProcessor:
     def __init__(self, train_x, train_y, valid_x, valid_y, test_x, metadata):
         self.train=Nas_Data(train_x,train_y)
         self.valid=Nas_Data(valid_x,valid_y)
-        self.test=Nas_Data(test_x)
+        self.test=Nas_Data(test_x,test=True)
         self.metadata=metadata
 
 
