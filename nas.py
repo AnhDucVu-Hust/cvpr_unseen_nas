@@ -6,19 +6,21 @@ import torch
 from torch.autograd import Variable
 from torch.backends import cudnn
 from torch import nn
-from tqdm import tqdm
 
 import utils
 from architect import Architect
 from model_search import *
 from Args import Args
+
 np.random.seed(42)
 torch.cuda.set_device("cuda:0" if torch.cuda.is_available() else "cpu")
 cudnn.benchmark = True
 torch.manual_seed(42)
-cudnn.enabled=True
+cudnn.enabled = True
 torch.cuda.manual_seed(42)
 args = Args()
+
+
 class NAS:
     """
     ====================================================================================================================
@@ -37,13 +39,13 @@ class NAS:
         You can modify or add anything into the metadata that you wish,
         if you want to pass messages between your classes,
     """
+
     def __init__(self, train_loader, valid_loader, metadata):
         # fill this in
-        self.train_loader=train_loader
-        self.valid_loader=valid_loader
-        self.num_classes=metadata['num_classes']
-        self.input_shape=metadata['input_shape']
-
+        self.train_loader = train_loader
+        self.valid_loader = valid_loader
+        self.num_classes = metadata['num_classes']
+        self.input_shape = metadata['input_shape']
 
     """
     ====================================================================================================================
@@ -52,16 +54,18 @@ class NAS:
     The search function is called with no arguments, and expects a PyTorch model as output. Use this to
     perform your architecture search. 
     """
+
     def search(self):
         criterion = nn.CrossEntropyLoss()
         criterion = criterion.cuda()
-        model = Network(C=16,num_channel=self.input_shape[1],layers=8,criterion=criterion,num_classes = self.num_classes)
+        model = Network(C=16, num_channel=self.input_shape[1], layers=8, criterion=criterion,
+                        num_classes=self.num_classes)
         model = model.cuda()
-        arch_params = list (map(id,model.arch_parameters()))
+        arch_params = list(map(id, model.arch_parameters()))
         weight_params = filter(lambda p: id(p) not in arch_params, model.parameters())
         optimizer = torch.optim.AdamW(weight_params, lr=1e-4, weight_decay=3e-4)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,50,eta_min=0)
-        architect = Architect(model,args)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 50, eta_min=0)
+        architect = Architect(model, args)
         ops = []
         for cell_type in ['normal', 'reduce']:
             for edge in range(model.num_edges):
@@ -69,19 +73,22 @@ class NAS:
                             range(0, model.num_ops)])
         ops = np.concatenate(ops)
         pretrain_epochs = 2
-        train_epochs = (2,2)
-        epoch=0
-        accum_shaps=[1e-3*torch.randn(model.num_edges,model.num_ops).cuda(),1e-3 * torch.randn(model.num_edges, model.num_ops).cuda()]
+        train_epochs = (2, 2)
+        epoch = 0
+        accum_shaps = [1e-3 * torch.randn(model.num_edges, model.num_ops).cuda(),
+                       1e-3 * torch.randn(model.num_edges, model.num_ops).cuda()]
         for i, current_epochs in enumerate(train_epochs):
             for e in range(current_epochs):
                 scheduler.step()
                 lr = scheduler.get_lr()[0]
-                genotype=model.genotype()
-                genotype_full=model.genotype_full()
-                if i == len(train_epochs) -1:
-                    shap_normal, shap_reduce = self.shap_estimation(self.valid_loader, model, criterion, ops, num_samples=args.samples)
-                    accum_shaps = self.change_alpha(model, [shap_normal,shap_reduce], accum_shaps, momentum = args.shapley_momentum, step_size = args.step_size)
-                train_acc, train_obj = self.train(self.train_loader,model,criterion,optimizer)
+                genotype = model.genotype()
+                genotype_full = model.genotype_full()
+                if i == len(train_epochs) - 1:
+                    shap_normal, shap_reduce = self.shap_estimation(self.valid_loader, model, criterion, ops,
+                                                                    num_samples=args.samples)
+                    accum_shaps = self.change_alpha(model, [shap_normal, shap_reduce], accum_shaps,
+                                                    momentum=args.shapley_momentum, step_size=args.step_size)
+                train_acc, train_obj = self.train(self.train_loader, model, criterion, optimizer)
                 if epoch == args.epochs - 1 or epoch % 2 == 0:
                     valid_acc, valid_obj = self.infer(self.valid_loader, model, criterion)
                     print('valid_acc %f', valid_acc)
@@ -94,7 +101,7 @@ class NAS:
             print('genotype = %s', genotype)
         return model
 
-    def remove_players(self,normal_weights, reduce_weights, op):
+    def remove_players(self, normal_weights, reduce_weights, op):
 
         selected_cell = str(op.split('_')[0])
         selected_eid = int(op.split('_')[1])
@@ -106,7 +113,7 @@ class NAS:
         else:
             reduce_weights[selected_eid] = reduce_weights[selected_eid] * proj_mask
 
-    def shap_estimation(self,valid_queue, model, criterion, players, num_samples, threshold=0.5):
+    def shap_estimation(self, valid_queue, model, criterion, players, num_samples, threshold=0.5):
         """
         Implementation of Monte-Carlo sampling of Shapley value for operation importance evaluation
         """
@@ -154,7 +161,7 @@ class NAS:
 
             return shap_normal, shap_reduce
 
-    def change_alpha(self,model, shap_values, accu_shap_values, momentum=0.8, step_size=0.1):
+    def change_alpha(self, model, shap_values, accu_shap_values, momentum=0.8, step_size=0.1):
         assert len(shap_values) == len(model.arch_parameters())
 
         shap = [torch.from_numpy(shap_values[i]).cuda() for i in range(len(model.arch_parameters()))]
@@ -174,12 +181,12 @@ class NAS:
 
         return updated_shap
 
-    def train(self,train_queue, model, criterion, optimizer):
+    def train(self, train_queue, model, criterion, optimizer):
         objs = utils.AvgrageMeter()
         top1 = utils.AvgrageMeter()
         top5 = utils.AvgrageMeter()
 
-        for step, (input, target) in tqdm(enumerate(train_queue), desc="training", total=len(train_queue)):
+        for step, (input, target) in enumerate(train_queue):
             model.train()
             n = input.size(0)
             input = Variable(input, requires_grad=False).cuda()
@@ -201,12 +208,13 @@ class NAS:
                 logging.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
 
         return top1.avg, objs.avg
-    def infer(self,valid_queue, model, criterion):
+
+    def infer(self, valid_queue, model, criterion):
         objs = utils.AvgrageMeter()
         top1 = utils.AvgrageMeter()
         top5 = utils.AvgrageMeter()
         model.eval()
-        
+
         with torch.no_grad():
             for step, (input, target) in enumerate(valid_queue):
 
@@ -222,6 +230,6 @@ class NAS:
                 top5.update(prec5.item(), n)
 
                 if step % args.report_freq == 0:
-                  logging.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+                    logging.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
 
         return top1.avg, objs.avg
