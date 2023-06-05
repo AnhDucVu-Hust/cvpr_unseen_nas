@@ -17,7 +17,7 @@ class Nas_Data(Dataset):
         if height %2 != 0:
             F.pad(input = img, pad = (0, 0, 0, 1), mode='constant', value=0)
         if width % 2 == 0:
-            F.pad(input = img, pad = (0, 0, 1, 0), mode='constant', value=0)
+            F.pad(input = img, pad = (1, 0, 0, 0), mode='constant', value=0)
         if self.test != True:
             return torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
         else:
