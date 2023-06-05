@@ -40,7 +40,7 @@ class DataProcessor:
 
     """
 
-    def __init__(self, train_x, train_y, valid_x, valid_y, test_x, metadata, pad):
+    def __init__(self, train_x, train_y, valid_x, valid_y, test_x, metadata):
         self.train=Nas_Data(train_x,train_y)
         self.valid=Nas_Data(valid_x,valid_y)
         self.test=Nas_Data(test_x,test=True)
