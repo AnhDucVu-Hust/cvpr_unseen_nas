@@ -2,7 +2,7 @@ import torch
 import torchvision.transforms as transforms
 import numpy as np
 from torch.utils.data import Dataset
-
+import cv2
 
 class Nas_Data(Dataset):
     def __init__(self,x,y=None,test=False):
@@ -12,8 +12,16 @@ class Nas_Data(Dataset):
     def __len__(self):
         return len(self.image)
     def __getitem__(self,item):
-        if self.image[0].shape[0] % 2 != 0:
-            transforms.Pad(1)
+        img = cv2.imread('self.image[item]')
+        height, width = img.shape
+
+        if (height % 2 == 1)
+            height += 1
+
+        if (width % 2 == 1)
+            width += 1
+
+        resized_img = cv2.resize(img, (width, height))
         if self.test != True:
             return torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
         else:
