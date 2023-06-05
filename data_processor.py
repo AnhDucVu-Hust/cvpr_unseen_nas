@@ -12,13 +12,13 @@ class Nas_Data(Dataset):
     def __len__(self):
         return len(self.image)
     def __getitem__(self,item):
-        img = cv2.imread('self.image[item]')
+        img = cv2.imread(self.image[item])
         height, width = img.shape
 
-        if (height % 2 == 1)
+        if (height % 2 == 1):
             height += 1
 
-        if (width % 2 == 1)
+        if (width % 2 == 1):
             width += 1
 
         resized_img = cv2.resize(img, (width, height))
