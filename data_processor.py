@@ -12,6 +12,8 @@ class Nas_Data(Dataset):
     def __len__(self):
         return len(self.image)
     def __getitem__(self,item):
+        if self.image[0].shape[0] % 2 != 0:
+            transforms.Pad(1)
         if self.test != True:
             return torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
         else:
@@ -38,12 +40,11 @@ class DataProcessor:
 
     """
 
-    def __init__(self, train_x, train_y, valid_x, valid_y, test_x, metadata):
+    def __init__(self, train_x, train_y, valid_x, valid_y, test_x, metadata, pad):
         self.train=Nas_Data(train_x,train_y)
         self.valid=Nas_Data(valid_x,valid_y)
         self.test=Nas_Data(test_x,test=True)
         self.metadata=metadata
-
 
 
     """
