@@ -90,8 +90,7 @@ class NAS:
                                                     momentum=args.shapley_momentum, step_size=args.step_size)
                 train_acc, train_obj = self.train(self.train_loader, model, criterion, optimizer)
                 if epoch == args.epochs - 1 or epoch % 2 == 0:
-                    valid_acc, valid_obj = self.infer(self.valid_loa
-                                                      der, model, criterion)
+                    valid_acc, valid_obj = self.infer(self.valid_loader, model, criterion)
                     print('valid_acc %f', valid_acc)
 #                 if not args.resume and epoch == pretrain_epochs - 1:
 #                     utils.save(model, os.path.join(args.save, 'weights_pretrain.pt'))
