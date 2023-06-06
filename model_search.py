@@ -76,7 +76,7 @@ class Cell(nn.Module):
 
     def forward(self, s0, s1, weights):
         s0 = padding_to_even(s0)
-        s1 = padding_to_even(s0)
+        s1 = padding_to_even(s1)
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
         
