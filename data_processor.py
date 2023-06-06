@@ -13,14 +13,14 @@ class Nas_Data(Dataset):
         return len(self.image)
     def __getitem__(self,item):
         if self.test != True:
-            torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
+            img, label = torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
         else:
-            torch.from_numpy(self.image[item]).float()
-        c, height, width = self.image[item].shape
+            img = torch.from_numpy(self.image[item]).float()
+        c, height, width = img.shape
         if height %2 != 0:
-            self.image[item] = F.pad(input = self.image[item], pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0)
+            self.image[item] = F.pad(input = img, pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0)
         if width % 2 != 0:
-            self.image[item] = F.pad(input = self.image[item], pad = (0, 1, 0, 0, 0, 0), mode='constant', value=0)
+            self.image[item] = F.pad(input = img, pad = (0, 1, 0, 0, 0, 0), mode='constant', value=0)
         if self.test != True:
             return self.image[item], self.label[item]
         else:
