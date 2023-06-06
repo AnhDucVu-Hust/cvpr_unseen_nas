@@ -12,7 +12,7 @@ class Nas_Data(Dataset):
     def __len__(self):
         return len(self.image)
     def __getitem__(self,item):
-        c, (height, width) = self.image[item].shape
+        c, height, width = self.image[item].shape
         if height %2 != 0:
             self.image[item] = F.pad(input = self.image[item], pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0)
         if width % 2 != 0:
