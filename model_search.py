@@ -6,11 +6,11 @@ from genotype import *
 def padding_to_even(img):
     _ ,c, height,width = img.shape
     if height %2 != 0 and width % 2 == 0:
-        return F.pad(input = img, pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0)
+        return F.pad(input = img, pad = (0, 0, 1, 0, 0, 0, 0, 0), mode='constant', value=0)
     elif width % 2 != 0 and height % 2 == 0:
-        return F.pad(input = img, pad = (0, 1, 0, 0, 0, 0), mode='constant', value=0)
+        return F.pad(input = img, pad = (0, 1, 0, 0, 0, 0, 0, 0), mode='constant', value=0)
     elif width % 2 != 0 and height % 2 != 0:
-        return F.pad(input = img, pad = (0, 1, 1, 0, 0, 0), mode='constant', value=0)
+        return F.pad(input = img, pad = (0, 1, 1, 0, 0, 0, 0, 0), mode='constant', value=0)
     else:
         return img
 def channel_shuffle(x, groups):
