@@ -18,21 +18,21 @@ class Nas_Data(Dataset):
             img = torch.from_numpy(self.image[item]).float()
         c, height, width = img.shape
         if self.test != True:
-            if height %2 != 0 and width % 2 == 0:
-                return F.pad(input = img, pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0), label
-            elif width % 2 != 0 and height % 2 == 0:
-                return F.pad(input = img, pad = (0, 1, 0, 0, 0, 0), mode='constant', value=0), label
-            elif width % 2 != 0 and height % 2 != 0:
-                return F.pad(input = img, pad = (0, 1, 1, 0, 0, 0), mode='constant', value=0), label
+            if height %4 != 0 and width % 4 == 0:
+                return F.pad(input = img, pad = (0, 0, 4 - height % 4, 0, 0, 0), mode='constant', value=0), label
+            elif width % 4 != 0 and height % 4 == 0:
+                return F.pad(input = img, pad = (0, 4 - width % 4, 0, 0, 0, 0), mode='constant', value=0), label
+            elif width % 4 != 0 and height % 4 != 0:
+                return F.pad(input = img, pad = (0, 4 - width % 4, 4 - height % 4, 0, 0, 0), mode='constant', value=0), label
             else:
                 return img, label
         else:
-            if height %2 != 0 and width % 2 == 0:
-                return F.pad(input = img, pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0) 
-            elif width % 2 != 0 and height % 2 == 0:
-                return F.pad(input = img, pad = (0, 1, 0, 0, 0, 0), mode='constant', value=0)
-            elif width % 2 != 0 and height % 2 != 0:
-                return F.pad(input = img, pad = (0, 1, 1, 0, 0, 0), mode='constant', value=0) 
+            if height %4 != 0 and width % 4 == 0:
+                return F.pad(input = img, pad = (0, 0, 4 - height % 4, 0, 0, 0), mode='constant', value=0) 
+            elif width % 4 != 0 and height % 4 == 0:
+                return F.pad(input = img, pad = (0, 4 - width % 4, 0, 0, 0, 0), mode='constant', value=0)
+            elif width % 4 != 0 and height % 4 != 0:
+                return F.pad(input = img, pad = (0, 4 - width % 4, 4 - height % 4, 0, 0, 0), mode='constant', value=0)
             else:
                 return img
 class DataProcessor:
