@@ -3,7 +3,16 @@ from torch import nn
 import torch.nn.functional as F
 from operations import *
 from genotype import *
-
+def padding_to_even(img):
+    c, height,width = img.shape
+    if height %2 != 0 and width % 2 == 0:
+        return F.pad(input = img, pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0)
+    elif width % 2 != 0 and height % 2 == 0:
+        return F.pad(input = img, pad = (0, 1, 0, 0, 0, 0), mode='constant', value=0)
+    elif width % 2 != 0 and height % 2 != 0:
+        return F.pad(input = img, pad = (0, 1, 1, 0, 0, 0), mode='constant', value=0)
+    else:
+        return img
 def channel_shuffle(x, groups):
     batchsize, num_channels, height, width = x.data.size()
     channels_per_group = num_channels // groups
@@ -66,6 +75,8 @@ class Cell(nn.Module):
                 self._ops.append(op)
 
     def forward(self, s0, s1, weights):
+        s0 = padding_to_even(s0)
+        s1 = padding_to_even(s0)
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
         
