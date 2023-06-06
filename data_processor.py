@@ -17,20 +17,20 @@ class Nas_Data(Dataset):
         else:
             img = torch.from_numpy(self.image[item]).float()
         if self.test != True:
-            if height %2 != 0 && width % 2 == 0:
+            if height %2 != 0 and width % 2 == 0:
                 return F.pad(input = img, pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0), self.label[item]
-            elif width % 2 != 0 && height % 2 == 0:
+            elif width % 2 != 0 and height % 2 == 0:
                 return F.pad(input = img, pad = (0, 1, 0, 0, 0, 0), mode='constant', value=0), self.label[item]
-            elif width % 2 != 0 && height % 2 != 0:
+            elif width % 2 != 0 and height % 2 != 0:
                 return F.pad(input = img, pad = (0, 1, 1, 0, 0, 0), mode='constant', value=0), self.label[item]
             else:
                 return img, label
         else:
-            if height %2 != 0 && width % 2 == 0:
+            if height %2 != 0 and width % 2 == 0:
                 return F.pad(input = img, pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0) 
-            elif width % 2 != 0 && height % 2 == 0:
+            elif width % 2 != 0 and height % 2 == 0:
                 return F.pad(input = img, pad = (0, 1, 0, 0, 0, 0), mode='constant', value=0)
-            elif width % 2 != 0 && height % 2 != 0:
+            elif width % 2 != 0 and height % 2 != 0:
                 return F.pad(input = img, pad = (0, 1, 1, 0, 0, 0), mode='constant', value=0) 
             else:
                 return img
