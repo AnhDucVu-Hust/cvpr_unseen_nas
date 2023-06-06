@@ -92,7 +92,15 @@ class FactorizedReduce(nn.Module):
     self.bn = nn.BatchNorm2d(C_out, affine=affine)
 
   def forward(self, x):
-    x = self.relu(x)
-    out = torch.cat([self.conv_1(x), self.conv_2(x[:,:,1:,1:])], dim=1)
+    if height %2 != 0 and width % 2 == 0:
+      y = F.pad(input = img, pad = (0, 0, 1, 0, 0, 0), mode='constant', value=0) 
+    elif width % 2 != 0 and height % 2 == 0:
+      y = F.pad(input = x, pad = (0, 1, 0, 0, 0, 0), mode='constant', value=0)
+    elif width % 2 != 0 and height % 2 != 0:
+      y = F.pad(input = img, pad = (0, 1, 1, 0, 0, 0), mode='constant', value=0) 
+    else:
+      y = x
+    y = self.relu(y)
+    out = torch.cat([self.conv_1(y), self.conv_2(y[:,:,1:,1:])], dim=1)
     out = self.bn(out)
     return out
