@@ -72,8 +72,8 @@ class NAS:
                 ops.append(['{}_{}_{}'.format(cell_type, edge, i) for i in
                             range(0, model.num_ops)])
         ops = np.concatenate(ops)
-        pretrain_epochs = 15
-        train_epochs = (15, 10)
+        pretrain_epochs = 2
+        train_epochs = (2, 2)
         epoch = 0
         accum_shaps = [1e-3 * torch.randn(model.num_edges, model.num_ops).cuda(),
                        1e-3 * torch.randn(model.num_edges, model.num_ops).cuda()]
