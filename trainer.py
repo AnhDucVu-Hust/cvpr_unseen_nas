@@ -110,8 +110,8 @@ class Trainer:
         model.train()
 
         for step, (input, target) in enumerate(train_queue):
-            input = Variable(input).to(self.device)
-            target = Variable(target).to(self.device)
+            input = input.to(self.device)
+            target = target.to(self.device)
 
             optimizer.zero_grad()
             logits, logits_aux = model(input)
@@ -179,6 +179,6 @@ class Trainer:
         predictions = []
         for data in test_loader:
             data = data.to(self.device)
-            output = self.model.forward(data)
+            output,output_aux = self.model.forward(data)
             predictions += torch.argmax(output, 1).detach().cpu().tolist()
         return predictions
