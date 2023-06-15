@@ -101,8 +101,6 @@ class NAS:
 
             genotype = model.genotype()
             print(genotype)
-            with open('/kaggle/working/genotype.txt', 'w') as f:
-                f.write(str(genotype))
             print(F.softmax(model.alphas_normal, dim=-1))
             print(F.softmax(model.alphas_reduce, dim=-1))
 
