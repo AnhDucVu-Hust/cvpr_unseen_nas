@@ -6,7 +6,7 @@ import torch
 from torch.autograd import Variable
 from torch.backends import cudnn
 from torch import nn
-
+from utils import AvgrageMeter
 import utils
 from architect import Architect
 from model_search import *
@@ -56,180 +56,125 @@ class NAS:
     """
 
     def search(self):
+        np.random.seed(args.seed)
+        torch.cuda.set_device(args.gpu)
+        cudnn.benchmark = True
+        torch.manual_seed(args.seed)
+        cudnn.enabled = True
+        torch.cuda.manual_seed(args.seed)
+        print('gpu device = %d' % args.gpu)
+        print("args = %s", args)
+        logging.info('gpu device = %d' % args.gpu)
+        logging.info("args = %s", args)
+
         criterion = nn.CrossEntropyLoss()
         criterion = criterion.cuda()
-        model = Network(C=16, num_channel=self.input_shape[1], layers=8, criterion=criterion,
-                        num_classes=self.num_classes)
+        model = Network(args.init_channels, self.num_classes, args.layers, criterion)
         model = model.cuda()
-        arch_params = list(map(id, model.arch_parameters()))
-        weight_params = filter(lambda p: id(p) not in arch_params, model.parameters())
-        optimizer = torch.optim.AdamW(weight_params, lr=1e-4, weight_decay=3e-4)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 50, eta_min=0)
+        print("param size = %fMB", utils.count_parameters_in_MB(model))
+        logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
+
+        # print("Day la model " + str(model.alphas_normal))
+        optimizer = torch.optim.SGD(
+            model.parameters(),
+            args.learning_rate,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay)
+
+        # train_transform, valid_transform = utils._data_transforms_cifar10(args)
+        train_queue = self.train_loader
+        valid_queue = self.valid_loader
+        #valid_queue = len(train_data)
+        #indices = list(range(num_train))
+        # split = int(np.floor(args.train_portion * num_train))
+
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, float(args.epochs), eta_min=args.learning_rate_min)
+
         architect = Architect(model, args)
-        ops = []
-        for cell_type in ['normal', 'reduce']:
-            for edge in range(model.num_edges):
-                ops.append(['{}_{}_{}'.format(cell_type, edge, i) for i in
-                            range(0, model.num_ops)])
-        ops = np.concatenate(ops)
-        pretrain_epochs = 2
-        train_epochs = (2, 2)
-        epoch = 0
-        accum_shaps = [1e-3 * torch.randn(model.num_edges, model.num_ops).cuda(),
-                       1e-3 * torch.randn(model.num_edges, model.num_ops).cuda()]
-        for i, current_epochs in enumerate(train_epochs):
-            for e in range(current_epochs):
-                scheduler.step()
-                lr = scheduler.get_lr()[0]
-                genotype = model.genotype()
-                genotype_full = model.genotype_full()
-                if i == len(train_epochs) - 1:
-                    shap_normal, shap_reduce = self.shap_estimation(self.valid_loader, model, criterion, ops,
-                                                                    num_samples=args.samples)
-                    accum_shaps = self.change_alpha(model, [shap_normal, shap_reduce], accum_shaps,
-                                                    momentum=args.shapley_momentum, step_size=args.step_size)
-                train_acc, train_obj = self.train(self.train_loader, model, criterion, optimizer)
-                if epoch == args.epochs - 1 or epoch % 2 == 0:
-                    valid_acc, valid_obj = self.infer(self.valid_loader, model, criterion)
-                    print('valid_acc %f', valid_acc)
-#                 if not args.resume and epoch == pretrain_epochs - 1:
-#                     utils.save(model, os.path.join(args.save, 'weights_pretrain.pt'))
-#                 utils.save(model, os.path.join(args.save, 'weights.pt'))
-                epoch += 1
-                model.show_arch_parameters()
+
+        for epoch in range(args.epochs):
+            scheduler.step()
+            lr = scheduler.get_lr()[0]
+            print('epoch %d lr %e' % (epoch, lr))
+            logging.info('epoch %d lr %e', epoch, lr)
+
             genotype = model.genotype()
-            print('genotype = %s', genotype)
-        return model
+            print(genotype)
+            with open('/kaggle/working/genotype.txt', 'w') as f:
+                f.write(str(genotype))
+            print(F.softmax(model.alphas_normal, dim=-1))
+            print(F.softmax(model.alphas_reduce, dim=-1))
 
-    def remove_players(self, normal_weights, reduce_weights, op):
+            # training
+            train_acc, train_obj = self.train(train_queue, valid_queue, model, architect, criterion, optimizer, lr)
+            logging.info('train_acc %f', train_acc)
 
-        selected_cell = str(op.split('_')[0])
-        selected_eid = int(op.split('_')[1])
-        opid = int(op.split('_')[-1])
-        proj_mask = torch.ones_like(normal_weights[selected_eid])
-        proj_mask[opid] = 0
-        if selected_cell in ['normal']:
-            normal_weights[selected_eid] = normal_weights[selected_eid] * proj_mask
-        else:
-            reduce_weights[selected_eid] = reduce_weights[selected_eid] * proj_mask
+            # validation
+            valid_acc, valid_obj = self.infer(valid_queue, model, criterion)
+            logging.info('valid_acc %f', valid_acc)
 
-    def shap_estimation(self, valid_queue, model, criterion, players, num_samples, threshold=0.5):
-        """
-        Implementation of Monte-Carlo sampling of Shapley value for operation importance evaluation
-        """
+            utils.save(model, os.path.join(args.save, 'weights.pt'))
 
-        permutations = None
-        n = len(players)
-        sv_acc = np.zeros((n, num_samples))
-
-        with torch.no_grad():
-
-            if permutations is None:
-                # Keep the same permutations for all batches
-                permutations = [np.random.permutation(n) for _ in range(num_samples)]
-
-            for j in range(num_samples):
-                x, y = next(iter(valid_queue))
-                x, y = x.cuda(), y.cuda(non_blocking=True)
-                logits = model(x, weights_dict=None)
-                ori_prec1, = utils.accuracy(logits, y, topk=(1,))
-
-                normal_weights = model.get_projected_weights('normal')
-                reduce_weights = model.get_projected_weights('reduce')
-
-                acc = ori_prec1.data.item()
-                print('MC sampling %d times' % (j + 1))
-
-                for idx, i in enumerate(permutations[j]):
-
-                    self.remove_players(normal_weights, reduce_weights, players[i])
-
-                    logits = model(x, weights_dict={'normal': normal_weights, 'reduce': reduce_weights})
-                    prec1, = utils.accuracy(logits, y, topk=(1,))
-                    new_acc = prec1.item()
-                    delta_acc = acc - new_acc
-                    sv_acc[i][j] = delta_acc
-                    acc = new_acc
-                    # print(players[i], delta_acc)
-
-                    if acc < threshold * ori_prec1:
-                        break
-
-            result = np.mean(sv_acc, axis=-1) - np.std(sv_acc, axis=-1)
-            shap_acc = np.reshape(result, (2, model.num_edges, model.num_ops))
-            shap_normal, shap_reduce = shap_acc[0], shap_acc[1]
-
-            return shap_normal, shap_reduce
-
-    def change_alpha(self, model, shap_values, accu_shap_values, momentum=0.8, step_size=0.1):
-        assert len(shap_values) == len(model.arch_parameters())
-
-        shap = [torch.from_numpy(shap_values[i]).cuda() for i in range(len(model.arch_parameters()))]
-
-        for i, params in enumerate(shap):
-            mean = params.data.mean()
-            std = params.data.std()
-            params.data.add_(-mean).div_(std)
-
-        updated_shap = [
-            accu_shap_values[i] * momentum \
-            + shap[i] * (1. - momentum)
-            for i in range(len(model.arch_parameters()))]
-
-        for i, p in enumerate(model.arch_parameters()):
-            p.data.add_((step_size * updated_shap[i]).to(p.device))
-
-        return updated_shap
-
-    def train(self, train_queue, model, criterion, optimizer):
-        objs = utils.AvgrageMeter()
-        top1 = utils.AvgrageMeter()
-        top5 = utils.AvgrageMeter()
+    def train(self,train_queue, valid_queue, model, architect, criterion, optimizer, lr):
+        objs = AvgrageMeter()
+        top1 = AvgrageMeter()
+        top5 = AvgrageMeter()
 
         for step, (input, target) in enumerate(train_queue):
             model.train()
             n = input.size(0)
+
             input = Variable(input, requires_grad=False).cuda()
             target = Variable(target, requires_grad=False).cuda()
+
+            # get a random minibatch from the search queue with replacement
+            input_search, target_search = next(iter(valid_queue))
+            input_search = Variable(input_search, requires_grad=False).cuda()
+            target_search = Variable(target_search, requires_grad=False).cuda()
+
+            architect.step(input, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
+
             optimizer.zero_grad()
             logits = model(input)
             loss = criterion(logits, target)
 
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+            nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
             optimizer.step()
 
-            prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-            objs.update(loss.item(), n)
-            top1.update(prec1.item(), n)
-            top5.update(prec5.item(), n)
+            prec1 = utils.accuracy(logits, target, topk=(1,))[0]
+            objs.update(loss.data, n)
+            top1.update(prec1.data, n)
+            # top5.update(prec5.data, n)
 
             if step % args.report_freq == 0:
-                logging.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+                print('train %03d %e %f %f' % (step, objs.avg, top1.avg, top5.avg))
+        #         logging.info('train %03d %e %f %f' % step, objs.avg, top1.avg, top5.avg)
 
         return top1.avg, objs.avg
 
-    def infer(self, valid_queue, model, criterion):
-        objs = utils.AvgrageMeter()
-        top1 = utils.AvgrageMeter()
-        top5 = utils.AvgrageMeter()
+    def infer(self,valid_queue, model, criterion):
+        objs = AvgrageMeter()
+        top1 = AvgrageMeter()
+        top5 = AvgrageMeter()
         model.eval()
-
         with torch.no_grad():
             for step, (input, target) in enumerate(valid_queue):
+                input = Variable(input, volatile=True).cuda()
+                target = Variable(target, volatile=True).cuda()
 
-                input = Variable(input).cuda()
-                target = Variable(target).cuda()
                 logits = model(input)
                 loss = criterion(logits, target)
 
-                prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
+                prec1 = utils.accuracy(logits, target, topk=(1,))[0]
                 n = input.size(0)
-                objs.update(loss.item(), n)
-                top1.update(prec1.item(), n)
-                top5.update(prec5.item(), n)
+                objs.update(loss.data, n)
+                top1.update(prec1.data, n)
+                # top5.update(prec5.data, n)
 
                 if step % args.report_freq == 0:
-                    logging.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+                    print('valid %03d %e %f %f' % (step, objs.avg, top1.avg, top5.avg))
+        #           logging.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
 
         return top1.avg, objs.avg

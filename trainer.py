@@ -1,10 +1,17 @@
+import glob
+import logging
+import sys
 import time
 from sklearn.metrics import accuracy_score
 
 import torch
 from torch import optim
 import torch.nn as nn
+import numpy as np
+from torch.backends import cudnn
 
+from Args import Args
+from utils import *
 
 
 class Trainer:
@@ -30,11 +37,11 @@ class Trainer:
         self.train_dataloader = train_dataloader
         self.valid_dataloader = valid_dataloader
         self.metadata = metadata
-
+        self.args = Args()
         # define  training parameters
         self.epochs = 2
         self.optimizer = optim.SGD(model.parameters(), lr=.01, momentum=.9, weight_decay=3e-4)
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss().to(self.device)
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
 
     """
@@ -46,48 +53,113 @@ class Trainer:
 
     See the example submission for how this should look
     """
-
     def train(self):
-        if torch.cuda.is_available():
-            self.model.cuda()
-        t_start = time.time()
+
+        args = self.args
+        args.save = 'eval-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
+        utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
+
+        log_format = '%(asctime)s %(message)s'
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO,
+                            format=log_format, datefmt='%m/%d %I:%M:%S %p')
+        fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
+        fh.setFormatter(logging.Formatter(log_format))
+        logging.getLogger().addHandler(fh)
+        np.random.seed(args.seed)
+        torch.cuda.set_device(args.gpu)
+        cudnn.benchmark = True
+        torch.manual_seed(args.seed)
+        cudnn.enabled = True
+        torch.cuda.manual_seed(args.seed)
+        logging.info('gpu device = %d' % args.gpu)
+        logging.info("args = %s", args)
+
+        #genotype = eval(str(xx))
+        #model = NetworkCIFAR(args.init_channels, CIFAR_CLASSES, args.layers, genotype=xx, auxiliary=args.auxiliary)
+        self.model = self.model.to(self.device)
+
+        logging.info("param size = %fMB", utils.count_parameters_in_MB(self.model))
+
+
+        # train_transform, valid_transform = utils._data_transforms_cifar10(args)
+        train_queue = self.train_dataloader
+        valid_queue = self.valid_dataloader
+        # split = int(np.floor(args.train_portion * num_train))
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, float(args.epochs))
+
         for epoch in range(self.epochs):
-            self.model.train()
-            labels, predictions = [], []
-            for data, target in self.train_dataloader:
-                data, target = data.to(self.device), target.to(self.device)
-                self.optimizer.zero_grad()
-                output = self.model.forward(data)
+            scheduler.step()
+            logging.info('epoch %d lr %e', epoch, scheduler.get_lr()[0])
+            self.model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
-                # store labels and predictions to compute accuracy
-                labels += target.cpu().tolist()
-                predictions += torch.argmax(output, 1).detach().cpu().tolist()
+            train_acc, train_obj = self._train(train_queue, self.model, self.criterion, self.optimizer)
+            print('train_acc %f' % train_acc)
+            logging.info('train_acc %f', train_acc)
+            with torch.no_grad():
+                valid_acc, valid_obj = self.infer(valid_queue, self.model, self.criterion)
+                print('valid_acc %f', valid_acc)
+                logging.info('valid_acc %f', valid_acc)
 
-                loss = self.criterion(output, target)
-                loss.backward()
-                self.optimizer.step()
-            self.scheduler.step()
-
-            train_acc = accuracy_score(labels, predictions)
-            valid_acc = self.evaluate()
-            print("\tEpoch {:d}| Train Acc: {:>2f}| Valid Acc {:>2f} | T/Epoch: {:>7f}|".format(
-                epoch + 1, self.epochs,
-                train_acc * 100, valid_acc * 100,
-
-            ))
+            utils.save(self.model, os.path.join(args.save, 'weights.pt'))
         return self.model
 
-    # print out the model's accuracy over the valid dataset
-    # (this isn't necessary for a submission, but I like it for my training logs)
-    def evaluate(self):
-        self.model.eval()
-        labels, predictions = [], []
-        for data, target in self.valid_dataloader:
-            data = data.to(self.device)
-            output = self.model.forward(data)
-            labels += target.cpu().tolist()
-            predictions += torch.argmax(output, 1).detach().cpu().tolist()
-        return accuracy_score(labels, predictions)
+    def _train(self,train_queue, model, criterion, optimizer):
+        objs = AvgrageMeter()
+        top1 = AvgrageMeter()
+        top5 = AvgrageMeter()
+        model.train()
+
+        for step, (input, target) in enumerate(train_queue):
+            input = Variable(input).to(self.device)
+            target = Variable(target).to(self.device)
+
+            optimizer.zero_grad()
+            logits, logits_aux = model(input)
+            loss = criterion(logits, target)
+            if self.args.auxiliary:
+                loss_aux = criterion(logits_aux, target)
+                loss += self.args.auxiliary_weight * loss_aux
+            loss.backward()
+            nn.utils.clip_grad_norm(model.parameters(), self.args.grad_clip)
+            optimizer.step()
+
+            prec1 = utils.accuracy(logits, target, topk=(1,))
+            n = input.size(0)
+            objs.update(loss.data, n)
+            top1.update(prec1[0], n)
+            # top5.update(prec5.data, n)
+
+            if step % self.args.report_freq == 0:
+                print('train ', step, objs.avg, top1.avg, top5.avg)
+                # logging.info('train ', step, objs.avg, top1.avg, top5.avg)
+
+        return top1.avg, objs.avg
+
+
+    def infer(self,valid_queue, model, criterion):
+        objs = AvgrageMeter()
+        top1 = AvgrageMeter()
+        top5 = AvgrageMeter()
+        model.eval()
+
+        for step, (input, target) in enumerate(valid_queue):
+            input = Variable(input, volatile=True).cuda()
+            target = Variable(target, volatile=True).cuda()
+
+            logits, _ = model(input)
+            loss = criterion(logits, target)
+
+            prec1 = utils.accuracy(logits, target, topk=(1,))
+            n = input.size(0)
+            objs.update(loss.data, n)
+            top1.update(prec1[0], n)
+            # top5.update(prec5.data, n)
+
+            if step % self.args.report_freq == 0:
+                print('valid ', step, objs.avg, top1.avg, top5.avg)
+                # logging.info('valid ', step, objs.avg, top1.avg, top5.avg)
+
+        return top1.avg, objs.avg
 
     """
     ====================================================================================================================

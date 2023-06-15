@@ -4,7 +4,6 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 
-
 def _concat(xs):
   return torch.cat([x.view(-1) for x in xs])
 
