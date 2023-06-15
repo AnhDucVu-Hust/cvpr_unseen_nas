@@ -114,11 +114,8 @@ class Trainer:
             target = target.to(self.device)
 
             optimizer.zero_grad()
-            logits, logits_aux = model(input)
+            logits = model(input)
             loss = criterion(logits, target)
-            if self.args.auxiliary:
-                loss_aux = criterion(logits_aux, target)
-                loss += self.args.auxiliary_weight * loss_aux
             loss.backward()
             nn.utils.clip_grad_norm(model.parameters(), self.args.grad_clip)
             optimizer.step()
@@ -143,10 +140,10 @@ class Trainer:
         model.eval()
 
         for step, (input, target) in enumerate(valid_queue):
-            input = Variable(input, volatile=True).cuda()
-            target = Variable(target, volatile=True).cuda()
+            input = input.to(self.device)
+            target = target.to(self.device)
 
-            logits, _ = model(input)
+            logits = model(input)
             loss = criterion(logits, target)
 
             prec1 = utils.accuracy(logits, target, topk=(1,))
@@ -179,6 +176,6 @@ class Trainer:
         predictions = []
         for data in test_loader:
             data = data.to(self.device)
-            output,output_aux = self.model.forward(data)
+            output = self.model.forward(data)
             predictions += torch.argmax(output, 1).detach().cpu().tolist()
         return predictions
