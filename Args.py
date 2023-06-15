@@ -7,7 +7,7 @@ class Args:
     weight_decay = 3e-4
     report_freq = 50
     gpu = 0
-    epochs = 20
+    epochs = 1
     init_channels = 16
     layers = 8
     model_path = 'saved_models'
