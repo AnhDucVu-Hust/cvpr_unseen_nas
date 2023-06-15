@@ -10,7 +10,7 @@ class Nas_Data(Dataset):
         self.label=y
         self.test=test
     def __len__(self):
-        return 1000
+        return len(self.image)
     def __getitem__(self,item):
         if self.test != True:
             img, label = torch.from_numpy(self.image[item]).float(),torch.tensor(self.label[item])
