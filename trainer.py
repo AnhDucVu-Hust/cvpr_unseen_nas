@@ -40,7 +40,7 @@ class Trainer:
         self.metadata = metadata
         self.args = Args()
         # define  training parameters
-        self.epochs = 2
+        self.epochs = 300
         self.optimizer = optim.SGD(model.parameters(), lr=.01, momentum=.9, weight_decay=3e-4)
         self.criterion = nn.CrossEntropyLoss().to(self.device)
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs)
